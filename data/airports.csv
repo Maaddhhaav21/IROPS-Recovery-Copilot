@@ -1,0 +1,21 @@
+iata_code,name,city,country
+DXB,Dubai International Airport,Dubai,UAE
+LHR,London Heathrow Airport,London,UK
+JFK,John F. Kennedy International Airport,New York,USA
+BOM,Chhatrapati Shivaji Maharaj International Airport,Mumbai,India
+DEL,Indira Gandhi International Airport,Delhi,India
+SIN,Singapore Changi Airport,Singapore,Singapore
+DOH,Hamad International Airport,Doha,Qatar
+FRA,Frankfurt Airport,Frankfurt,Germany
+CDG,Charles de Gaulle Airport,Paris,France
+AMS,Amsterdam Schiphol Airport,Amsterdam,Netherlands
+IST,Istanbul Airport,Istanbul,Turkey
+HKG,Hong Kong International Airport,Hong Kong,Hong Kong
+SYD,Sydney Kingsford Smith Airport,Sydney,Australia
+MEL,Melbourne Airport,Melbourne,Australia
+BKK,Suvarnabhumi Airport,Bangkok,Thailand
+NRT,Narita International Airport,Tokyo,Japan
+ICN,Incheon International Airport,Seoul,South Korea
+ORD,Chicago O'Hare International Airport,Chicago,USA
+LAX,Los Angeles International Airport,Los Angeles,USA
+SFO,San Francisco International Airport,San Francisco,USA

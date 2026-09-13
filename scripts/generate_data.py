@@ -2,11 +2,15 @@ import pandas as pd
 from pathlib import Path
 import random
 from datetime import datetime, timedelta
+from faker import Faker
 
 DATA_DIR = Path("data")
 DATA_DIR.mkdir(exist_ok=True)
 
+fake = Faker()
+
 random.seed(42)
+Faker.seed(42)
 
 AIRPORTS = [
     {
@@ -297,7 +301,326 @@ def generate_flights(count=200):
 
     print(f"Generated {len(df)} flights")
 
+def generate_passengers(count=2000):
+    flights_df = pd.read_csv(DATA_DIR / "flights.csv")
+    passengers = []
+    for i in range(1, count + 1):
+        # Pick a random flight for the passenger
+        flight = flights_df.sample(1).iloc[0]
+
+        passenger = {
+            "passenger_id": f"P{i:05d}",
+            "name": fake.name(),
+            "flight_id": flight["flight_id"],
+            "origin": flight["origin"],
+            "destination": flight["destination"],
+            "cabin": random.choices(
+                ["Economy", "Business", "First"],
+                weights=[80, 17, 3]
+            )[0],
+            "fare_class": random.choice(
+                ["Y", "M", "B", "J", "C", "F"]
+            ),
+            "special_assistance": random.random() < 0.05
+        }
+        passengers.append(passenger)
+
+    df = pd.DataFrame(passengers)
+
+    df.to_csv(
+        DATA_DIR / "passengers.csv",
+        index=False
+    )
+
+    print(f"Generated {len(df)} passengers")
+
+def generate_connections():
+
+    flights_df = pd.read_csv(DATA_DIR / "flights.csv")
+    passengers_df = pd.read_csv(DATA_DIR / "passengers.csv")
+
+    # Convert times to datetime
+    flights_df["departure"] = pd.to_datetime(flights_df["departure"])
+    flights_df["arrival"] = pd.to_datetime(flights_df["arrival"])
+
+    connections = []
+
+    connection_id = 1
+
+    # We will try to give around 25% of passengers a connection
+    connecting_passengers = passengers_df.sample(
+        frac=0.25,
+        random_state=42
+    )
+
+    for _, passenger in connecting_passengers.iterrows():
+
+        first_flight = flights_df[
+            flights_df["flight_id"] == passenger["flight_id"]
+        ].iloc[0]
+
+        # Find possible second flights
+        possible_connections = flights_df[
+            (flights_df["origin"] == first_flight["destination"]) &
+            (flights_df["departure"] > first_flight["arrival"])
+        ].copy()
+
+        if possible_connections.empty:
+            continue
+
+        # Calculate connection time
+        possible_connections["connection_minutes"] = (
+            possible_connections["departure"]
+            - first_flight["arrival"]
+        ).dt.total_seconds() / 60
+
+        # Keep realistic connections
+        possible_connections = possible_connections[
+            (possible_connections["connection_minutes"] >= 60) &
+            (possible_connections["connection_minutes"] <= 480)
+        ]
+
+        if possible_connections.empty:
+            continue
+
+        # Pick one possible connecting flight
+        second_flight = possible_connections.sample(
+            1,
+            random_state=connection_id
+        ).iloc[0]
+
+        connections.append({
+            "connection_id": f"C{connection_id:05d}",
+            "passenger_id": passenger["passenger_id"],
+            "first_flight_id": first_flight["flight_id"],
+            "second_flight_id": second_flight["flight_id"],
+            "connection_airport": first_flight["destination"],
+            "arrival_time": first_flight["arrival"],
+            "next_departure_time": second_flight["departure"],
+            "connection_minutes": int(
+                second_flight["connection_minutes"]
+            )
+        })
+
+        connection_id += 1
+
+    df = pd.DataFrame(connections)
+
+    df.to_csv(
+        DATA_DIR / "connections.csv",
+        index=False
+    )
+
+    print(f"Generated {len(df)} connections")
+
+def generate_crew(count=100):
+    crew = []
+    airport_codes = [
+        airport["iata_code"]
+        for airport in AIRPORTS
+    ]
+
+    aircraft_types = list(AIRCRAFT_TYPES.keys())
+
+    roles = [
+        "CAPTAIN",
+        "FIRST_OFFICER",
+        "CABIN_CREW"
+    ]
+
+    for i in range(1, count + 1):
+
+        role = random.choices(
+            roles,
+            weights=[15, 20, 65]
+        )[0]
+
+        aircraft_type = random.choice(
+            aircraft_types
+        )
+
+        base_airport = random.choice(
+            airport_codes
+        )
+
+        current_airport = random.choice(
+            airport_codes
+        )
+
+        duty_hours = round(
+            random.uniform(0, 10),
+            1
+        )
+
+        rest_hours = round(
+            random.uniform(8, 16),
+            1
+        )
+
+        status = random.choices(
+            ["AVAILABLE", "ON_DUTY", "RESTING"],
+            weights=[60, 25, 15]
+        )[0]
+
+        crew.append({
+            "crew_id": f"C{i:05d}",
+            "name": fake.name(),
+            "role": role,
+            "aircraft_type": aircraft_type,
+            "base_airport": base_airport,
+            "current_airport": current_airport,
+            "duty_hours": duty_hours,
+            "rest_hours": rest_hours,
+            "status": status
+        })
+
+    df = pd.DataFrame(crew)
+
+    df.to_csv(
+        DATA_DIR / "crew.csv",
+        index=False
+    )
+
+    print(f"Generated {len(df)} crew members")
+
+def generate_crew(count=100):
+
+    crew = []
+
+    airport_codes = [
+        airport["iata_code"]
+        for airport in AIRPORTS
+    ]
+
+    aircraft_types = list(AIRCRAFT_TYPES.keys())
+
+    roles = [
+        "CAPTAIN",
+        "FIRST_OFFICER",
+        "CABIN_CREW"
+    ]
+
+    for i in range(1, count + 1):
+
+        role = random.choices(
+            roles,
+            weights=[15, 20, 65]
+        )[0]
+
+        aircraft_type = random.choice(
+            aircraft_types
+        )
+
+        base_airport = random.choice(
+            airport_codes
+        )
+
+        current_airport = random.choice(
+            airport_codes
+        )
+
+        duty_hours = round(
+            random.uniform(0, 10),
+            1
+        )
+
+        rest_hours = round(
+            random.uniform(8, 16),
+            1
+        )
+
+        status = random.choices(
+            ["AVAILABLE", "ON_DUTY", "RESTING"],
+            weights=[60, 25, 15]
+        )[0]
+
+        crew.append({
+            "crew_id": f"C{i:05d}",
+            "name": fake.name(),
+            "role": role,
+            "aircraft_type": aircraft_type,
+            "base_airport": base_airport,
+            "current_airport": current_airport,
+            "duty_hours": duty_hours,
+            "rest_hours": rest_hours,
+            "status": status
+        })
+
+    df = pd.DataFrame(crew)
+
+    df.to_csv(
+        DATA_DIR / "crew.csv",
+        index=False
+    )
+
+    print(f"Generated {len(df)} crew members")
+
+def generate_disruptions(count=20):
+
+    flights_df = pd.read_csv(DATA_DIR / "flights.csv")
+
+    disruption_types = [
+        "AIRCRAFT_FAILURE",
+        "WEATHER",
+        "CREW_UNAVAILABLE",
+        "ATC_RESTRICTION",
+        "AIRPORT_CLOSURE"
+    ]
+
+    disruptions = []
+
+    for i in range(1, count + 1):
+
+        # Select a random flight
+        flight = flights_df.sample(1).iloc[0]
+
+        disruption_type = random.choice(disruption_types)
+
+        # Aircraft failure / crew unavailable / airport closure
+        # are treated as high severity in our simulation.
+        if disruption_type in [
+            "AIRCRAFT_FAILURE",
+            "CREW_UNAVAILABLE",
+            "AIRPORT_CLOSURE"
+        ]:
+            severity = "HIGH"
+            status = "CANCELLED"
+
+        elif disruption_type == "WEATHER":
+            severity = random.choice(["MEDIUM", "HIGH"])
+            status = random.choice(["DELAYED", "CANCELLED"])
+
+        else:
+            severity = "MEDIUM"
+            status = "DELAYED"
+
+        disruptions.append({
+            "disruption_id": f"D{i:05d}",
+            "flight_id": flight["flight_id"],
+            "type": disruption_type,
+            "severity": severity,
+            "status": status,
+            "description": (
+                f"{disruption_type.replace('_', ' ').title()} "
+                f"affecting flight {flight['flight_id']}"
+            )
+        })
+
+    df = pd.DataFrame(disruptions)
+
+    df.to_csv(
+        DATA_DIR / "disruptions.csv",
+        index=False
+    )
+
+    print(f"Generated {len(df)} disruptions")
+
+
 if __name__ == "__main__":
     generate_airports()
     generate_aircraft()
     generate_flights()
+    generate_passengers()
+    generate_connections()
+    generate_crew()
+    generate_disruptions()

@@ -1,0 +1,9 @@
+passenger_id,name,passenger_type,cabin,fare_class,special_assistance,flight_id,origin,destination
+DEMO_P001,Rahul Sharma,CONNECTING,Economy,Y,True,DEMO001,DXB,LHR
+DEMO_P002,Emma Wilson,CONNECTING,Economy,M,False,DEMO001,DXB,LHR
+DEMO_P003,James Anderson,CONNECTING,Business,J,False,DEMO001,DXB,LHR
+DEMO_P004,Sofia Martin,CONNECTING,Economy,B,False,DEMO001,DXB,LHR
+DEMO_P005,Daniel Brown,CONNECTING,Economy,Y,False,DEMO001,DXB,LHR
+DEMO_P006,Arjun Patel,DIRECT,Economy,Y,False,DEMO001,DXB,DOH
+DEMO_P007,Olivia Taylor,DIRECT,Economy,M,False,DEMO001,DXB,DOH
+DEMO_P008,Michael Davis,DIRECT,Business,J,False,DEMO001,DXB,DOH

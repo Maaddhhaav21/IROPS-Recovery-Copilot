@@ -244,127 +244,262 @@ def passenger_priority(passenger):
 
     return -score
 
+
 # ============================================================
-# 5. FIND BEST FEASIBLE REBOOKING
+# 5. OR-TOOLS OPTIMIZATION
 # ============================================================
 
-def find_feasible_rebooking(
-    passenger,
-    alternatives,
-    remaining_seats
-):
+from ortools.sat.python import cp_model
+
+
+def build_feasible_options(affected, alternatives):
     """
-    Find the best alternative flight that satisfies:
+    Build all passenger -> flight assignments that satisfy
+    the hard operational constraints.
 
-    1. Available seat
-    2. Valid connection
-
-    Among feasible flights, choose the one
-    with the best score.
+    A pair is feasible only if:
+    1. The alternative flight has a seat.
+    2. The passenger can make their connection.
     """
 
-    passenger_id = passenger["passenger_id"]
+    feasible_options = {}
 
-    feasible_flights = []
+    for _, passenger in affected.iterrows():
+        passenger_id = passenger["passenger_id"]
+        feasible_options[passenger_id] = []
 
-    for _, flight in alternatives.iterrows():
+        for _, flight in alternatives.iterrows():
+            flight_id = flight["flight_id"]
 
-        flight_id = flight["flight_id"]
+            if int(flight["available_seats"]) <= 0:
+                continue
 
-        # ----------------------------------------------------
-        # Capacity check
-        # ----------------------------------------------------
+            connection_result = check_connection(
+                passenger_id,
+                flight_id
+            )
 
-        if remaining_seats[flight_id] <= 0:
-            continue
+            if connection_result["valid"]:
+                feasible_options[passenger_id].append(
+                    flight_id
+                )
 
-        # ----------------------------------------------------
-        # Connection check
-        # ----------------------------------------------------
+    return feasible_options
 
-        connection_result = check_connection(
-            passenger_id,
-            flight_id
-        )
 
-        if not connection_result["valid"]:
-            continue
+def optimize_rebooking(affected, alternatives):
+    """
+    Find the best overall rebooking plan using OR-Tools CP-SAT.
 
-        # This flight is feasible
-        feasible_flights.append(flight)
+    Hard constraints:
+    - Every passenger is assigned to at most one flight.
+    - A passenger can only use a feasible flight.
+    - A flight cannot receive more passengers than its available seats.
 
-    # --------------------------------------------------------
-    # No feasible flights
-    # --------------------------------------------------------
+    Objective:
+    - Rebook as many passengers as possible.
+    - Minimize passenger arrival delay.
+    - Preserve scarce seats by applying a small penalty to flights
+      with fewer available seats.
+    """
 
-    if not feasible_flights:
+    model = cp_model.CpModel()
 
-        return {
-            "passenger_id": passenger_id,
-            "passenger_name": passenger["name"],
-            "original_flight": passenger["flight_id"],
-            "new_flight": None,
-            "status": "NO_FEASIBLE_FLIGHT",
-            "reason": "No seats or valid connection available"
-        }
-
-    # --------------------------------------------------------
-    # Find best flight
-    # --------------------------------------------------------
-
-    best_flight = min(
-        feasible_flights,
-        key=lambda flight: score_flight(
-            passenger,
-            flight,
-            remaining_seats
-        )
+    feasible_options = build_feasible_options(
+        affected,
+        alternatives
     )
 
-    best_flight_id = best_flight["flight_id"]
+    # --------------------------------------------------------
+    # Create decision variables
+    # --------------------------------------------------------
+    #
+    # x[p, f] = 1 means passenger p is assigned to flight f.
+    #
+    # x[p, f] = 0 means they are not assigned to that flight.
+    # --------------------------------------------------------
 
-    # Consume one seat
-    remaining_seats[best_flight_id] -= 1
+    decision_vars = {}
 
-    return {
-        "passenger_id": passenger_id,
-        "passenger_name": passenger["name"],
-        "original_flight": passenger["flight_id"],
-        "new_flight": best_flight_id,
-        "status": "REBOOKED",
-        "reason": "Best feasible alternative selected"
-    }
+    for _, passenger in affected.iterrows():
+        passenger_id = passenger["passenger_id"]
+
+        for flight_id in feasible_options[passenger_id]:
+            decision_vars[
+                (passenger_id, flight_id)
+            ] = model.NewBoolVar(
+                f"x_{passenger_id}_{flight_id}"
+            )
+
+    # --------------------------------------------------------
+    # Constraint 1:
+    # Each passenger can receive at most one flight.
+    # --------------------------------------------------------
+
+    for _, passenger in affected.iterrows():
+        passenger_id = passenger["passenger_id"]
+
+        variables = [
+            decision_vars[(passenger_id, flight_id)]
+            for flight_id in feasible_options[passenger_id]
+        ]
+
+        if variables:
+            model.Add(sum(variables) <= 1)
+
+    # --------------------------------------------------------
+    # Constraint 2:
+    # Flight capacity cannot be exceeded.
+    # --------------------------------------------------------
+
+    for _, flight in alternatives.iterrows():
+        flight_id = flight["flight_id"]
+
+        variables = [
+            decision_vars[(passenger_id, flight_id)]
+            for passenger_id in feasible_options
+            if (passenger_id, flight_id) in decision_vars
+        ]
+
+        if variables:
+            model.Add(
+                sum(variables)
+                <= int(flight["available_seats"])
+            )
+
+    # --------------------------------------------------------
+    # Objective
+    # --------------------------------------------------------
+    #
+    # We use a weighted objective:
+    #
+    # 1. Strongly reward every successful rebooking.
+    # 2. Among solutions with the same number of rebookings,
+    #    prefer earlier passenger arrival.
+    # 3. Slightly prefer flights with more available seats.
+    #
+    # The rebooking reward is deliberately much larger than
+    # the delay cost, so leaving a passenger unresolved is
+    # always worse than accepting a reasonable delay.
+    # --------------------------------------------------------
+
+    flight_lookup = (
+        alternatives
+        .set_index("flight_id")
+        .to_dict("index")
+    )
+
+    objective_terms = []
+
+    for (passenger_id, flight_id), variable in decision_vars.items():
+
+        flight = flight_lookup[flight_id]
+
+        arrival = pd.to_datetime(
+            flight["arrival"]
+        )
+
+        # Minutes from the disruption date.
+        arrival_minutes = int(
+            (
+                arrival - pd.Timestamp("2026-10-01")
+            ).total_seconds() / 60
+        )
+
+        available_seats = int(
+            flight["available_seats"]
+        )
+
+        # Main reward for rebooking.
+        rebooking_reward = 1_000_000
+
+        # Earlier arrival is better.
+        delay_cost = arrival_minutes * 100
+
+        # Small tie-breaker to avoid consuming scarce capacity
+        # when another equally good flight exists.
+        seat_cost = max(
+            0,
+            500 - available_seats
+        )
+
+        coefficient = (
+            rebooking_reward
+            - delay_cost
+            - seat_cost
+        )
+
+        objective_terms.append(
+            coefficient * variable
+        )
+
+    if objective_terms:
+        model.Maximize(
+            sum(objective_terms)
+        )
+
+    # --------------------------------------------------------
+    # Solve
+    # --------------------------------------------------------
+
+    solver = cp_model.CpSolver()
+
+    # Keep the result deterministic and easy to reproduce.
+    solver.parameters.num_search_workers = 1
+
+    status = solver.Solve(model)
+
+    if status not in (
+        cp_model.OPTIMAL,
+        cp_model.FEASIBLE
+    ):
+        return [], feasible_options, "NO_SOLUTION"
+
+    # --------------------------------------------------------
+    # Extract solution
+    # --------------------------------------------------------
+
+    results = []
+
+    for _, passenger in affected.iterrows():
+        passenger_id = passenger["passenger_id"]
+
+        assigned_flight = None
+
+        for flight_id in feasible_options[passenger_id]:
+            variable = decision_vars[
+                (passenger_id, flight_id)
+            ]
+
+            if solver.Value(variable) == 1:
+                assigned_flight = flight_id
+                break
+
+        if assigned_flight is None:
+            results.append({
+                "passenger_id": passenger_id,
+                "passenger_name": passenger["name"],
+                "original_flight": passenger["flight_id"],
+                "new_flight": None,
+                "status": "NO_FEASIBLE_FLIGHT",
+                "reason": "No feasible assignment in optimized solution"
+            })
+        else:
+            results.append({
+                "passenger_id": passenger_id,
+                "passenger_name": passenger["name"],
+                "original_flight": passenger["flight_id"],
+                "new_flight": assigned_flight,
+                "status": "REBOOKED",
+                "reason": "OR-Tools optimized assignment"
+            })
+
+    return results, feasible_options, solver.StatusName(status)
+
 
 # ============================================================
-# 6. SCORE ALTERNATIVE FLIGHTS
+# 6. FIND GOOD TEST FLIGHT
 # ============================================================
-
-def score_flight(passenger, flight, remaining_seats):
-    """
-    Score a feasible alternative flight.
-
-    Lower score = better flight.
-
-    Priority:
-    1. Earliest arrival
-    2. Preserve flights with more remaining seats
-
-    The passenger priority is handled separately before rebooking.
-    """
-
-    arrival = pd.to_datetime(flight["arrival"])
-    seats_left = remaining_seats[flight["flight_id"]]
-
-    # Use minutes from a fixed reference instead of a large timestamp.
-    # This keeps the scoring easy to understand.
-    arrival_score = (
-        arrival - pd.Timestamp("2026-10-01")
-    ).total_seconds() / 60
-
-    # Small tie-breaker: prefer the flight with more seats left.
-    seat_score = -seats_left * 0.01
-
-    return arrival_score + seat_score
 
 def find_good_test_flight():
 
@@ -398,7 +533,6 @@ def find_good_test_flight():
             flights["flight_id"] == flight_id
         ].iloc[0]
 
-        # Find this flight's connections
         flight_connections = connections[
             connections["first_flight_id"] == flight_id
         ]
@@ -410,38 +544,28 @@ def find_good_test_flight():
                 == connection["second_flight_id"]
             ].iloc[0]
 
-            # Find alternate flights
             alternatives = flights[
-                (flights["origin"]
-                 == first_flight["origin"]) &
-                (flights["destination"]
-                 == first_flight["destination"]) &
-                (flights["departure"]
-                 > first_flight["departure"]) &
-                (flights["status"] == "SCHEDULED")
+                (flights["origin"] == first_flight["origin"])
+                & (flights["destination"] == first_flight["destination"])
+                & (flights["departure"] > first_flight["departure"])
+                & (flights["status"] == "SCHEDULED")
             ]
 
             for _, alternative in alternatives.iterrows():
 
-                # How much time would remain
-                # for the connection?
                 minutes = (
                     next_flight["departure"]
                     - alternative["arrival"]
                 ).total_seconds() / 60
 
-                # We found a useful scenario:
-                # at least one alternative works
-                # and at least one doesn't.
                 if minutes >= 60:
-
                     return flight_id
 
-    # Fallback
     return connection_counts.index[0]
 
+
 # ============================================================
-# 5. MAIN TEST
+# 7. MAIN TEST
 # ============================================================
 
 if __name__ == "__main__":
@@ -451,7 +575,7 @@ if __name__ == "__main__":
     flight_id = find_good_test_flight()
 
     print("=" * 60)
-    print("IROPS RECOVERY ENGINE")
+    print("IROPS RECOVERY ENGINE - OR-TOOLS")
     print("=" * 60)
 
     # --------------------------------------------------------
@@ -499,10 +623,8 @@ if __name__ == "__main__":
     )
 
     if alternatives.empty:
-
         print("No alternative flights found.")
-
-        exit()
+        raise SystemExit
 
     print(
         alternatives[
@@ -575,66 +697,106 @@ if __name__ == "__main__":
                     f"  → {flight['flight_id']} | "
                     f"✗ {result['reason']}"
                 )
+
     # --------------------------------------------------------
-    # Rebooking decisions
+    # OR-Tools optimized rebooking
     # --------------------------------------------------------
 
     print("\n" + "=" * 60)
-    print("REBOOKING DECISIONS")
+    print("OR-TOOLS OPTIMIZED REBOOKING")
     print("=" * 60)
 
-    # Track remaining seats on every alternative
-    remaining_seats = {}
+    rebooking_results, feasible_options, solver_status = (
+        optimize_rebooking(
+            affected,
+            alternatives
+        )
+    )
 
-    for _, flight in alternatives.iterrows():
+    print(
+        f"Solver status: {solver_status}"
+    )
 
-        remaining_seats[flight["flight_id"]] = int(
+    # Track seats after the optimized assignment.
+    remaining_seats = {
+        flight["flight_id"]: int(
             flight["available_seats"]
         )
+        for _, flight in alternatives.iterrows()
+    }
 
-    rebooking_results = []
-    # Prioritize passengers before rebooking
-    affected = affected.copy()
-
-    affected["priority_score"] = affected.apply(
-        passenger_priority,
-        axis=1
-    )
-
-    affected = affected.sort_values(
-        "priority_score"
-    )
-
-    # Assign passengers one by one
-    for _, passenger in affected.iterrows():
-
-        result = find_feasible_rebooking(
-            passenger,
-            alternatives,
-            remaining_seats
-        )
-
-        rebooking_results.append(result)
+    for result in rebooking_results:
 
         if result["status"] == "REBOOKED":
 
+            remaining_seats[
+                result["new_flight"]
+            ] -= 1
+
             print(
-                f"{result['passenger_id']} "
-                f"({result['passenger_name']}) "
-                f"→ {result['new_flight']} "
-                f"| ✓ REBOOKED"
+                f'{result["passenger_id"]} '
+                f'({result["passenger_name"]}) '
+                f'→ {result["new_flight"]} '
+                f'| ✓ REBOOKED'
             )
 
         else:
 
             print(
-                f"{result['passenger_id']} "
-                f"({result['passenger_name']}) "
-                f"→ NO FLIGHT "
-                f"| ✗ NO FEASIBLE OPTION"
+                f'{result["passenger_id"]} '
+                f'({result["passenger_name"]}) '
+                f'→ NO FLIGHT '
+                f'| ✗ NO FEASIBLE OPTION'
             )
 
-    # Show remaining seats
+    # --------------------------------------------------------
+    # Recovery summary
+    # --------------------------------------------------------
+
+    successful_rebookings = sum(
+        result["status"] == "REBOOKED"
+        for result in rebooking_results
+    )
+
+    unresolved_passengers = (
+        len(rebooking_results)
+        - successful_rebookings
+    )
+
+    print("\n" + "=" * 60)
+    print("RECOVERY SUMMARY")
+    print("=" * 60)
+
+    print(
+        f"Total affected passengers : "
+        f"{len(affected)}"
+    )
+
+    print(
+        f"Successfully rebooked     : "
+        f"{successful_rebookings}"
+    )
+
+    print(
+        f"Unresolved passengers     : "
+        f"{unresolved_passengers}"
+    )
+
+    if unresolved_passengers == 0:
+        print(
+            "Status                    : "
+            "✓ ALL PASSENGERS REBOOKED"
+        )
+    else:
+        print(
+            "Status                    : "
+            "✗ SOME PASSENGERS UNRESOLVED"
+        )
+
+    # --------------------------------------------------------
+    # Remaining seats
+    # --------------------------------------------------------
+
     print("\n" + "=" * 60)
     print("REMAINING SEATS")
     print("=" * 60)
@@ -645,7 +807,7 @@ if __name__ == "__main__":
             f"{flight_id} | "
             f"Remaining seats: {seats}"
         )
-        print("\n" + "=" * 60)
 
+    print("\n" + "=" * 60)
     print("END OF TEST")
     print("=" * 60)

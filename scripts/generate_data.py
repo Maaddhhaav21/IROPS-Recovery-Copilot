@@ -832,7 +832,6 @@ def generate_crew(count=100):
     print(f"Generated {len(df)} crew members")
 
 def generate_disruptions(count=20):
-
     flights_df = pd.read_csv(DATA_DIR / "flights.csv")
 
     disruption_types = [
@@ -845,15 +844,42 @@ def generate_disruptions(count=20):
 
     disruptions = []
 
-    for i in range(1, count + 1):
+    # ============================================================
+    # GUARANTEED IROPS TEST SCENARIO
+    # ============================================================
+    # FL0001 is the flight used by the recovery engine.
+    # Always create a disruption for it so every component
+    # of the project works with the same test scenario.
+    # ============================================================
 
-        # Select a random flight
-        flight = flights_df.sample(1).iloc[0]
+    disrupted_flight = flights_df[
+        flights_df["flight_id"] == "FL0001"
+    ].iloc[0]
+
+    disruptions.append({
+        "disruption_id": "D00001",
+        "flight_id": "FL0001",
+        "type": "WEATHER",
+        "severity": "HIGH",
+        "status": "CANCELLED",
+        "description": "Severe weather causing cancellation of flight FL0001"
+    })
+
+    # ============================================================
+    # RANDOM ADDITIONAL DISRUPTIONS
+    # ============================================================
+
+    for i in range(2, count + 1):
+
+        # Avoid creating another disruption for FL0001.
+        available_flights = flights_df[
+            flights_df["flight_id"] != "FL0001"
+        ]
+
+        flight = available_flights.sample(1).iloc[0]
 
         disruption_type = random.choice(disruption_types)
 
-        # Aircraft failure / crew unavailable / airport closure
-        # are treated as high severity in our simulation.
         if disruption_type in [
             "AIRCRAFT_FAILURE",
             "CREW_UNAVAILABLE",

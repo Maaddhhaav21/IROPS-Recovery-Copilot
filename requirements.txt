@@ -4,16 +4,11 @@ ortools
 langgraph
 fastapi
 uvicorn
-
 langchain
 langchain-groq
 langchain-text-splitters
-
 python-dotenv
-
 sqlalchemy
-
 pymupdf
-
 chromadb
 sentence-transformers

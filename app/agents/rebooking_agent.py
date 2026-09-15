@@ -1,43 +1,39 @@
-from app.optimization.constraints import (
-    find_alternative_flights,
-)
+import pandas as pd
 
-from app.optimization.model import (
-    optimize_rebooking,
-)
+from app.tools.flight_tools import get_alternative_flights
+from app.optimization.model import optimize_rebooking
+
 
 class RebookingAgent:
-    """
-    Agent responsible for finding the best possible
-    rebooking plan for passengers affected by a disruption.
-    """
 
     def analyze(self, flight_id, affected_passengers):
-        """
-        Generate an optimized rebooking plan.
-        """
 
-        # Find alternative flights
-        alternatives = find_alternative_flights(
-            flight_id
-        )
+        alternatives = get_alternative_flights(flight_id)
 
-        if alternatives.empty:
+        if not alternatives:
             return {
                 "status": "NO_ALTERNATIVES",
                 "flight_id": flight_id,
                 "results": [],
                 "solver_status": "NO_SOLUTION",
+                "feasible_options": {},
             }
 
-        # Run OR-Tools optimization
-        (
-            results,
-            feasible_options,
-            solver_status,
-        ) = optimize_rebooking(
-            affected_passengers,
-            alternatives,
+        # The optimizer currently expects pandas DataFrames.
+        affected_df = pd.DataFrame(affected_passengers)
+        alternatives_df = pd.DataFrame(alternatives)
+
+        # Make sure the flight time columns are datetime values.
+        alternatives_df["departure"] = pd.to_datetime(
+            alternatives_df["departure"]
+        )
+        alternatives_df["arrival"] = pd.to_datetime(
+            alternatives_df["arrival"]
+        )
+
+        results, feasible_options, solver_status = optimize_rebooking(
+            affected_df,
+            alternatives_df,
         )
 
         rebooked = sum(
@@ -54,9 +50,7 @@ class RebookingAgent:
             "status": "REBOOKING_COMPLETED",
             "flight_id": flight_id,
             "solver_status": solver_status,
-            "total_passengers": len(
-                affected_passengers
-            ),
+            "total_passengers": len(affected_passengers),
             "rebooked": rebooked,
             "unresolved": unresolved,
             "results": results,

@@ -1,40 +1,17 @@
-import pandas as pd
+from app.tools.passenger_tools import (
+    get_affected_passengers,
+    get_connecting_passengers,
+)
 
 
 class PassengerAgent:
-    """
-    Agent responsible for identifying passengers affected
-    by a disrupted flight and their connection status.
-    """
-
-    def __init__(
-        self,
-        passengers_path="data/passengers.csv",
-        connections_path="data/connections.csv",
-    ):
-        self.passengers_path = passengers_path
-        self.connections_path = connections_path
 
     def analyze(self, flight_id):
-        """
-        Find passengers affected by the disrupted flight
-        and identify which of them have onward connections.
-        """
 
-        passengers = pd.read_csv(
-            self.passengers_path
-        )
+        affected = get_affected_passengers(flight_id)
+        connecting = get_connecting_passengers(flight_id)
 
-        connections = pd.read_csv(
-            self.connections_path
-        )
-
-        # Find passengers booked on the disrupted flight
-        affected = passengers[
-            passengers["flight_id"] == flight_id
-        ].copy()
-
-        if affected.empty:
+        if not affected:
             return {
                 "status": "NO_AFFECTED_PASSENGERS",
                 "flight_id": flight_id,
@@ -42,26 +19,25 @@ class PassengerAgent:
                 "connecting_passengers": [],
             }
 
-        # Find passengers who have an onward connection
-        connecting_ids = set(
-            connections[
-                connections["first_flight_id"]
-                == flight_id
-            ]["passenger_id"]
-        )
+        connecting_ids = {
+            passenger["passenger_id"]
+            for passenger in connecting
+        }
 
-        affected["has_connection"] = (
-            affected["passenger_id"]
-            .isin(connecting_ids)
-        )
+        for passenger in affected:
+            passenger["has_connection"] = (
+                passenger["passenger_id"] in connecting_ids
+            )
 
-        connecting = affected[
-            affected["has_connection"]
-        ].copy()
+        connecting_with_flag = [
+            passenger
+            for passenger in affected
+            if passenger["has_connection"]
+        ]
 
         return {
             "status": "PASSENGERS_FOUND",
             "flight_id": flight_id,
             "affected_passengers": affected,
-            "connecting_passengers": connecting,
+            "connecting_passengers": connecting_with_flag,
         }

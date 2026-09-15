@@ -1,6 +1,7 @@
 from langgraph.graph import StateGraph, END
 
 from app.graph.state import IROPSState
+
 from app.agents.disruption_agent import DisruptionAgent
 from app.agents.passenger_agent import PassengerAgent
 from app.agents.rebooking_agent import RebookingAgent
@@ -9,21 +10,23 @@ from app.agents.briefing_agent import BriefingAgent
 
 
 def disruption_node(state: IROPSState):
+
     flight_id = state["flight_id"]
 
     agent = DisruptionAgent()
     result = agent.analyze(flight_id)
 
     return {
-    "flight_id": result["flight_id"],
-    "disruption_type": result["disruption_type"],
-    "severity": result["severity"],
-    "disruption_status": result["disruption_status"],
-    "recovery_plan": result,
+        "flight_id": result["flight_id"],
+        "disruption_type": result.get("disruption_type"),
+        "severity": result.get("severity"),
+        "disruption_status": result.get("disruption_status"),
+        "recovery_plan": result,
     }
 
 
 def passenger_node(state: IROPSState):
+
     flight_id = state["flight_id"]
 
     agent = PassengerAgent()
@@ -36,26 +39,32 @@ def passenger_node(state: IROPSState):
 
 
 def rebooking_node(state: IROPSState):
+
     flight_id = state["flight_id"]
-    affected_passengers = state["affected_passengers"]
+
+    affected_passengers = state.get(
+        "affected_passengers",
+        []
+    )
 
     agent = RebookingAgent()
 
     result = agent.analyze(
         flight_id,
-        affected_passengers,
+        affected_passengers
     )
 
     return {
-        "alternative_flights": result.get("results", []),
-        "feasible_options": result.get("feasible_options", {}),
         "solver_status": result.get("solver_status"),
+        "feasible_options": result.get("feasible_options", {}),
         "rebooking_results": result.get("results", []),
+        "alternative_flights": result.get("results", []),
         "recovery_plan": result,
     }
 
 
 def crew_node(state: IROPSState):
+
     flight_id = state["flight_id"]
 
     agent = CrewAgent()
@@ -67,8 +76,8 @@ def crew_node(state: IROPSState):
 
 
 def briefing_node(state: IROPSState):
-    agent = BriefingAgent()
 
+    agent = BriefingAgent()
     result = agent.generate(state)
 
     return {
@@ -77,61 +86,61 @@ def briefing_node(state: IROPSState):
 
 
 def build_workflow():
+
     workflow = StateGraph(IROPSState)
 
-    # Add agents as LangGraph nodes
     workflow.add_node(
         "disruption_agent",
-        disruption_node,
+        disruption_node
     )
 
     workflow.add_node(
         "passenger_agent",
-        passenger_node,
+        passenger_node
     )
 
     workflow.add_node(
         "rebooking_agent",
-        rebooking_node,
+        rebooking_node
     )
 
     workflow.add_node(
         "crew_agent",
-        crew_node,
+        crew_node
     )
 
     workflow.add_node(
         "briefing_agent",
-        briefing_node,
+        briefing_node
     )
 
-    # Starting point
-    workflow.set_entry_point("disruption_agent")
+    workflow.set_entry_point(
+        "disruption_agent"
+    )
 
-    # Agent sequence
     workflow.add_edge(
         "disruption_agent",
-        "passenger_agent",
+        "passenger_agent"
     )
 
     workflow.add_edge(
         "passenger_agent",
-        "rebooking_agent",
+        "rebooking_agent"
     )
 
     workflow.add_edge(
         "rebooking_agent",
-        "crew_agent",
+        "crew_agent"
     )
 
     workflow.add_edge(
         "crew_agent",
-        "briefing_agent",
+        "briefing_agent"
     )
 
     workflow.add_edge(
         "briefing_agent",
-        END,
+        END
     )
 
     return workflow.compile()

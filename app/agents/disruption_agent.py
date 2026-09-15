@@ -1,39 +1,33 @@
-import pandas as pd
+from app.database.connection import SessionLocal
+from app.database.models import Disruption
 
 
 class DisruptionAgent:
-    """
-    Agent responsible for identifying and analyzing
-    an airline disruption.
-    """
-
-    def __init__(self, data_path="data/disruptions.csv"):
-        self.data_path = data_path
 
     def analyze(self, flight_id):
-        """
-        Analyze the disruption affecting a flight.
-        """
+        db = SessionLocal()
 
-        disruptions = pd.read_csv(self.data_path)
+        try:
+            disruption = (
+                db.query(Disruption)
+                .filter(Disruption.flight_id == flight_id)
+                .first()
+            )
 
-        disruption = disruptions[
-            disruptions["flight_id"] == flight_id
-        ]
+            if disruption is None:
+                return {
+                    "status": "NO_DISRUPTION",
+                    "flight_id": flight_id,
+                }
 
-        if disruption.empty:
             return {
-                "status": "NO_DISRUPTION",
+                "status": "DISRUPTION_FOUND",
                 "flight_id": flight_id,
+                "disruption_type": disruption.type,
+                "severity": disruption.severity,
+                "disruption_status": disruption.status,
+                "description": disruption.description,
             }
 
-        disruption = disruption.iloc[0]
-
-        return {
-            "status": "DISRUPTION_FOUND",
-            "flight_id": flight_id,
-            "disruption_type": disruption["type"],
-            "severity": disruption["severity"],
-            "disruption_status": disruption["status"],
-            "description": disruption["description"],
-        }
+        finally:
+            db.close()

@@ -1,27 +1,15 @@
-import pandas as pd
+from app.tools.flight_tools import get_flight
+from app.tools.aircraft_tools import get_aircraft
+from app.tools.crew_tools import get_available_crew
 
 
 class CrewAgent:
-    def __init__(
-        self,
-        crew_path="data/crew.csv",
-        flights_path="data/flights.csv",
-        aircraft_path="data/aircraft.csv",
-    ):
-        self.crew_path = crew_path
-        self.flights_path = flights_path
-        self.aircraft_path = aircraft_path
 
     def analyze(self, flight_id):
-        # Load data
-        crew = pd.read_csv(self.crew_path)
-        flights = pd.read_csv(self.flights_path)
-        aircraft = pd.read_csv(self.aircraft_path)
 
-        # Find the flight
-        flight = flights[flights["flight_id"] == flight_id]
+        flight = get_flight(flight_id)
 
-        if flight.empty:
+        if flight is None:
             return {
                 "status": "FLIGHT_NOT_FOUND",
                 "flight_id": flight_id,
@@ -29,14 +17,11 @@ class CrewAgent:
                 "matching_crew": [],
             }
 
-        flight = flight.iloc[0]
+        aircraft_id = flight["aircraft_id"]
 
-        # Find the aircraft assigned to this flight
-        aircraft_info = aircraft[
-            aircraft["aircraft_id"] == flight["aircraft_id"]
-        ]
+        aircraft = get_aircraft(aircraft_id)
 
-        if aircraft_info.empty:
+        if aircraft is None:
             return {
                 "status": "AIRCRAFT_NOT_FOUND",
                 "flight_id": flight_id,
@@ -44,27 +29,21 @@ class CrewAgent:
                 "matching_crew": [],
             }
 
-        aircraft_info = aircraft_info.iloc[0]
+        aircraft_type = aircraft["aircraft_type"]
+        origin = flight["origin"]
 
-        # IMPORTANT:
-        # aircraft.csv uses "aircraft_type"
-        aircraft_type = aircraft_info["aircraft_type"]
+        available_crew = get_available_crew(origin)
 
-        # Find available crew at the flight's origin
-        available_crew = crew[
-            (crew["current_airport"] == flight["origin"])
-            & (crew["status"] == "AVAILABLE")
-        ].copy()
-
-        # Keep only crew qualified for this aircraft type
-        matching_crew = available_crew[
-            available_crew["aircraft_type"] == aircraft_type
-        ].copy()
+        matching_crew = [
+            crew
+            for crew in available_crew
+            if crew["aircraft_type"] == aircraft_type
+        ]
 
         return {
             "status": "CREW_ANALYSIS_COMPLETED",
             "flight_id": flight_id,
-            "origin": flight["origin"],
+            "origin": origin,
             "destination": flight["destination"],
             "aircraft_type": aircraft_type,
             "available_crew": available_crew,

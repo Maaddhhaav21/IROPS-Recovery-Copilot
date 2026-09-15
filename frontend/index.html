@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IROPS Recovery Copilot | Airline Operations Intelligence</title>
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    .detail-card {
+      margin-top: 24px;
+    }
+
+    .table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .recovery-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 760px;
+    }
+
+    .recovery-table th,
+    .recovery-table td {
+      padding: 14px 16px;
+      text-align: left;
+      border-bottom: 1px solid rgba(120, 145, 190, 0.16);
+      vertical-align: middle;
+    }
+
+    .recovery-table th {
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #7183a8;
+      font-weight: 600;
+    }
+
+    .recovery-table td {
+      font-size: 13px;
+      color: #c9d3e8;
+    }
+
+    .recovery-table tbody tr:hover {
+      background: rgba(80, 210, 205, 0.035);
+    }
+
+    .table-empty {
+      text-align: center !important;
+      color: #7183a8 !important;
+      padding: 28px !important;
+    }
+
+    .table-status {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 9px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+    }
+
+    .table-status--success {
+      color: #38d9a9;
+      border: 1px solid rgba(56, 217, 169, 0.35);
+      background: rgba(56, 217, 169, 0.08);
+    }
+
+    .table-status--warning {
+      color: #ffb454;
+      border: 1px solid rgba(255, 180, 84, 0.35);
+      background: rgba(255, 180, 84, 0.08);
+    }
+
+    .table-status--neutral {
+      color: #91a3c6;
+      border: 1px solid rgba(145, 163, 198, 0.3);
+      background: rgba(145, 163, 198, 0.06);
+    }
+
+    .flight-cell {
+      font-weight: 700;
+      color: #e5ecfa !important;
+    }
+
+    .route-cell {
+      white-space: nowrap;
+    }
+
+    .reason-cell {
+      max-width: 360px;
+      line-height: 1.5;
+    }
+
+    .table-muted {
+      color: #7183a8 !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================= -->
+  <!-- TOP NAVIGATION                                 -->
+  <!-- ============================================= -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span class="topbar-icon">&#9992;</span>
+      <div class="topbar-titles">
+        <span class="topbar-title">IROPS RECOVERY COPILOT</span>
+        <span class="topbar-subtitle">Airline Operations Intelligence</span>
+      </div>
+    </div>
+    <div class="topbar-status">
+      <span class="status-dot status-dot--ok" id="systemStatusDot"></span>
+      <span id="systemStatusText">System Operational</span>
+    </div>
+  </header>
+
+  <main class="dashboard">
+
+    <!-- ============================================= -->
+    <!-- FLIGHT ANALYSIS HEADER                         -->
+    <!-- ============================================= -->
+    <section class="analysis-panel">
+      <div class="analysis-panel-heading">
+        <h1>Flight Recovery Analysis</h1>
+        <p class="analysis-panel-sub">Run the recovery engine against a disrupted flight to generate a full operational assessment.</p>
+      </div>
+
+      <div class="analysis-controls">
+        <div class="input-group">
+          <label for="flightIdInput" class="input-label">Flight ID</label>
+          <input
+            type="text"
+            id="flightIdInput"
+            class="flight-input"
+            placeholder="e.g. FL0001"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+        <button id="analyzeBtn" class="btn-primary">
+          <span id="analyzeBtnLabel">Analyze Recovery</span>
+        </button>
+        <button id="resetBtn" class="btn-secondary" title="Clear results">Clear</button>
+      </div>
+
+      <div class="analysis-meta">
+        <span id="lastAnalyzedWrap" class="last-analyzed hidden">
+          Last analyzed: <strong id="lastAnalyzedFlight">—</strong>
+          &nbsp;&middot;&nbsp;
+          <span id="lastAnalyzedTime">—</span>
+        </span>
+      </div>
+    </section>
+
+    <!-- ============================================= -->
+    <!-- ERROR BANNER                                   -->
+    <!-- ============================================= -->
+    <section id="errorBanner" class="error-banner hidden">
+      <span class="error-banner-icon">&#9888;</span>
+      <div>
+        <p class="error-banner-title" id="errorTitle">Unable to complete request</p>
+        <p class="error-banner-message" id="errorMessage">Something went wrong.</p>
+      </div>
+    </section>
+
+    <!-- ============================================= -->
+    <!-- LOADING STATE                                  -->
+    <!-- ============================================= -->
+    <section id="loadingState" class="loading-panel hidden">
+      <div class="loading-header">
+        <div class="spinner"></div>
+        <h2>Analyzing Flight</h2>
+      </div>
+      <ul class="loading-steps">
+        <li data-step="0"><span class="loading-step-marker"></span>Retrieving disruption data&hellip;</li>
+        <li data-step="1"><span class="loading-step-marker"></span>Evaluating passenger impact&hellip;</li>
+        <li data-step="2"><span class="loading-step-marker"></span>Running recovery optimization&hellip;</li>
+        <li data-step="3"><span class="loading-step-marker"></span>Analyzing crew availability&hellip;</li>
+        <li data-step="4"><span class="loading-step-marker"></span>Generating operational briefing&hellip;</li>
+      </ul>
+    </section>
+
+    <!-- ============================================= -->
+    <!-- EMPTY STATE                                    -->
+    <!-- ============================================= -->
+    <section id="emptyState" class="empty-state">
+      <span class="empty-state-icon">&#9992;</span>
+      <h2>Select a Flight to Begin Recovery Analysis</h2>
+      <p>Enter a flight ID above and run the recovery engine to generate a full disruption assessment.</p>
+    </section>
+
+    <!-- ============================================= -->
+    <!-- RESULTS                                        -->
+    <!-- ============================================= -->
+    <div id="resultsWrap" class="results-wrap hidden">
+
+      <!-- DISRUPTION OVERVIEW -->
+      <section class="card disruption-card">
+        <div class="card-header">
+          <h2>Disruption Overview</h2>
+        </div>
+        <div class="disruption-grid">
+          <div class="disruption-field">
+            <span class="field-label">Flight</span>
+            <span class="field-value field-value--large" id="disFlightId">—</span>
+          </div>
+          <div class="disruption-field">
+            <span class="field-label">Disruption</span>
+            <span class="field-value" id="disType">—</span>
+          </div>
+          <div class="disruption-field">
+            <span class="field-label">Severity</span>
+            <span class="badge" id="disSeverity">—</span>
+          </div>
+          <div class="disruption-field">
+            <span class="field-label">Recovery Status</span>
+            <span class="badge badge--neutral" id="disStatus">—</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- PASSENGER IMPACT -->
+      <section class="stat-grid">
+        <div class="stat-card">
+          <span class="stat-label">Affected Passengers</span>
+          <span class="stat-value" id="statAffected">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Connecting Passengers</span>
+          <span class="stat-value" id="statConnecting">—</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Rebooked</span>
+          <span class="stat-value stat-value--positive" id="statRebooked">—</span>
+        </div>
+        <div class="stat-card" id="unresolvedCard">
+          <span class="stat-label">Unresolved</span>
+          <span class="stat-value" id="statUnresolved">—</span>
+        </div>
+      </section>
+
+      <div class="split-grid">
+        <!-- RECOVERY OPTIMIZATION -->
+        <section class="card">
+          <div class="card-header">
+            <h2>Recovery Optimization</h2>
+          </div>
+          <div class="optimization-body">
+            <div class="solver-row">
+              <span class="field-label">Solver Status</span>
+              <span class="badge" id="solverStatus">—</span>
+            </div>
+            <p class="recovery-summary" id="recoverySummary">—</p>
+            <div class="progress-track">
+              <div class="progress-fill" id="recoveryProgressFill"></div>
+            </div>
+            <span class="progress-caption" id="recoveryProgressCaption">—</span>
+          </div>
+        </section>
+
+        <!-- CREW STATUS -->
+        <section class="card">
+          <div class="card-header">
+            <h2>Crew Status</h2>
+          </div>
+          <div class="crew-body">
+            <div class="crew-row">
+              <span class="field-label">Aircraft Type</span>
+              <span class="field-value" id="crewAircraftType">—</span>
+            </div>
+            <div class="crew-row">
+              <span class="field-label">Available Crew</span>
+              <span class="field-value" id="crewAvailable">—</span>
+            </div>
+            <div class="crew-row">
+              <span class="field-label">Matching Crew</span>
+              <span class="field-value" id="crewMatching">—</span>
+            </div>
+            <p class="crew-alert hidden" id="crewAlert">
+              <span class="crew-alert-icon">&#9888;</span>
+              Crew Assignment Attention
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <!-- PASSENGER RECOVERY -->
+      <section class="card detail-card">
+        <div class="card-header">
+          <h2>Passenger Recovery</h2>
+          <span class="briefing-tag" id="passengerRecoveryTag">—</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="recovery-table">
+            <thead>
+              <tr>
+                <th>Passenger</th>
+                <th>Original Flight</th>
+                <th>New Flight</th>
+                <th>Status</th>
+                <th>Reason</th>
+              </tr>
+            </thead>
+            <tbody id="passengerRecoveryBody">
+              <tr>
+                <td colspan="5" class="table-empty">No recovery data available.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ALTERNATIVE FLIGHTS -->
+      <section class="card detail-card">
+        <div class="card-header">
+          <h2>Alternative Flights Considered</h2>
+          <span class="briefing-tag" id="alternativeFlightsTag">—</span>
+        </div>
+
+        <div class="table-wrap">
+          <table class="recovery-table">
+            <thead>
+              <tr>
+                <th>Flight</th>
+                <th>Route</th>
+                <th>Departure</th>
+                <th>Arrival</th>
+                <th>Available Seats</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="alternativeFlightsBody">
+              <tr>
+                <td colspan="6" class="table-empty">No alternative flights available.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- AI OPERATIONAL BRIEFING -->
+      <section class="card briefing-card">
+        <div class="card-header">
+          <h2>AI Operational Briefing</h2>
+          <span class="briefing-tag">Generated by LLM Briefing Agent</span>
+        </div>
+        <div class="briefing-body" id="briefingBody">
+          <!-- populated dynamically -->
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <footer class="footer">
+    <span>IROPS Recovery Copilot &mdash; Agentic Multi-Constraint Airline Disruption Recovery System</span>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

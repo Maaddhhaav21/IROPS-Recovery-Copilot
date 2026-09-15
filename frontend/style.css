@@ -1,0 +1,820 @@
+/* =================================================================
+   IROPS RECOVERY COPILOT — STYLESHEET
+   Design language: dark aviation operations console.
+   Palette: deep navy base, steel-blue panels, cyan telemetry accent,
+   status colors reserved strictly for state (ok / warn / danger).
+   ================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+/* -----------------------------------------------------------------
+   1. TOKENS
+   ----------------------------------------------------------------- */
+:root {
+  /* base surfaces */
+  --bg-base:        #0a0f1a;
+  --bg-panel:       #10182a;
+  --bg-panel-raised:#141e35;
+  --bg-inset:       #0c1424;
+
+  /* borders */
+  --border-subtle:  #1f2b45;
+  --border-strong:  #2c3b5c;
+
+  /* text */
+  --text-primary:   #e7ecf6;
+  --text-secondary: #9aa8c7;
+  --text-muted:     #647199;
+
+  /* accent — telemetry cyan */
+  --accent:         #4fd6d0;
+  --accent-dim:     #2a6f6d;
+  --accent-soft:    rgba(79, 214, 208, 0.12);
+
+  /* status */
+  --status-ok:      #3ecf8e;
+  --status-ok-soft: rgba(62, 207, 142, 0.14);
+  --status-warn:       #f0ad4e;
+  --status-warn-soft:  rgba(240, 173, 78, 0.14);
+  --status-danger:      #e5555f;
+  --status-danger-soft: rgba(229, 85, 95, 0.14);
+
+  /* type */
+  --font-ui:   'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  --shadow-panel: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+/* -----------------------------------------------------------------
+   2. RESET & BASE
+   ----------------------------------------------------------------- */
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-base);
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(79, 214, 208, 0.05), transparent 45%),
+    radial-gradient(circle at 85% 100%, rgba(79, 214, 208, 0.04), transparent 40%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+
+.hidden { display: none !important; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* -----------------------------------------------------------------
+   3. TOP NAVIGATION
+   ----------------------------------------------------------------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 28px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: rgba(16, 24, 42, 0.7);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-icon {
+  font-size: 20px;
+  color: var(--accent);
+  transform: rotate(45deg);
+  display: inline-block;
+}
+
+.topbar-titles {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.topbar-title {
+  font-weight: 700;
+  font-size: 14.5px;
+  letter-spacing: 0.04em;
+}
+
+.topbar-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.topbar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.status-dot--ok {
+  background: var(--status-ok);
+  box-shadow: 0 0 0 3px var(--status-ok-soft);
+  animation: pulse-dot 2.4s ease-in-out infinite;
+}
+
+.status-dot--danger {
+  background: var(--status-danger);
+  box-shadow: 0 0 0 3px var(--status-danger-soft);
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* -----------------------------------------------------------------
+   4. LAYOUT
+   ----------------------------------------------------------------- */
+.dashboard {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 28px 28px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.footer {
+  text-align: center;
+  padding: 22px 20px 32px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+}
+
+/* -----------------------------------------------------------------
+   5. ANALYSIS PANEL
+   ----------------------------------------------------------------- */
+.analysis-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 24px 26px;
+  box-shadow: var(--shadow-panel);
+}
+
+.analysis-panel-heading h1 {
+  font-size: 19px;
+}
+
+.analysis-panel-sub {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 13px;
+  max-width: 560px;
+}
+
+.analysis-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.flight-input {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.03em;
+  width: 220px;
+  transition: border-color 0.15s ease;
+}
+
+.flight-input::placeholder { color: var(--text-muted); }
+
+.flight-input:focus {
+  border-color: var(--accent);
+}
+
+.btn-primary,
+.btn-secondary {
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, transform 0.05s ease;
+  height: 40px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #06221f;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #6ee2dc;
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--border-strong);
+  color: var(--text-secondary);
+}
+
+.btn-secondary:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.analysis-meta {
+  margin-top: 14px;
+  min-height: 18px;
+}
+
+.last-analyzed {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.last-analyzed strong {
+  color: var(--text-secondary);
+}
+
+/* -----------------------------------------------------------------
+   6. ERROR BANNER
+   ----------------------------------------------------------------- */
+.error-banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--status-danger-soft);
+  border: 1px solid rgba(229, 85, 95, 0.35);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.error-banner-icon {
+  color: var(--status-danger);
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.error-banner-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: 13.5px;
+  color: #ffd7da;
+}
+
+.error-banner-message {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #e7b3b6;
+}
+
+/* -----------------------------------------------------------------
+   7. LOADING STATE
+   ----------------------------------------------------------------- */
+.loading-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 26px 28px;
+  box-shadow: var(--shadow-panel);
+}
+
+.loading-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.loading-header h2 {
+  font-size: 16px;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--border-strong);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.85s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-steps {
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.loading-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: color 0.3s ease;
+}
+
+.loading-steps li.is-active {
+  color: var(--text-primary);
+}
+
+.loading-steps li.is-done {
+  color: var(--text-secondary);
+}
+
+.loading-step-marker {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  flex-shrink: 0;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.loading-steps li.is-active .loading-step-marker {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.loading-steps li.is-done .loading-step-marker {
+  background: var(--status-ok);
+}
+
+/* -----------------------------------------------------------------
+   8. EMPTY STATE
+   ----------------------------------------------------------------- */
+.empty-state {
+  text-align: center;
+  padding: 70px 24px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+}
+
+.empty-state-icon {
+  font-size: 26px;
+  color: var(--text-muted);
+  display: inline-block;
+  transform: rotate(45deg);
+  margin-bottom: 14px;
+}
+
+.empty-state h2 {
+  font-size: 16px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.empty-state p {
+  margin: 0 auto;
+  max-width: 380px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* -----------------------------------------------------------------
+   9. RESULTS WRAP / CARDS
+   ----------------------------------------------------------------- */
+.results-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fade-in 0.35s ease;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px 24px;
+  box-shadow: var(--shadow-panel);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.card-header h2 {
+  font-size: 14.5px;
+  letter-spacing: 0.01em;
+}
+
+.field-label {
+  display: block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.field-value {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.field-value--large {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* -----------------------------------------------------------------
+   10. DISRUPTION OVERVIEW
+   ----------------------------------------------------------------- */
+.disruption-card {
+  border-color: var(--border-strong);
+}
+
+.disruption-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.disruption-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+}
+
+.badge--neutral {
+  color: var(--text-secondary);
+}
+
+/* severity variants — applied via JS by adding a modifier class */
+.badge--low {
+  color: var(--status-ok);
+  border-color: rgba(62, 207, 142, 0.35);
+  background: var(--status-ok-soft);
+}
+
+.badge--medium {
+  color: var(--status-warn);
+  border-color: rgba(240, 173, 78, 0.35);
+  background: var(--status-warn-soft);
+}
+
+.badge--high {
+  color: var(--status-danger);
+  border-color: rgba(229, 85, 95, 0.35);
+  background: var(--status-danger-soft);
+}
+
+/* -----------------------------------------------------------------
+   11. PASSENGER IMPACT STAT GRID
+   ----------------------------------------------------------------- */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.stat-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-panel);
+}
+
+.stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.stat-value--positive {
+  color: var(--status-ok);
+}
+
+#unresolvedCard.has-unresolved {
+  border-color: rgba(229, 85, 95, 0.4);
+  background: linear-gradient(180deg, rgba(229, 85, 95, 0.07), var(--bg-panel) 60%);
+}
+
+#unresolvedCard.has-unresolved #statUnresolved {
+  color: var(--status-danger);
+}
+
+/* -----------------------------------------------------------------
+   12. SPLIT GRID (Optimization + Crew)
+   ----------------------------------------------------------------- */
+.split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Recovery optimization */
+.optimization-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.solver-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.recovery-summary {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  border-radius: 999px;
+  transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-caption {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* solver status coloring, applied via modifier class from JS */
+.badge--solver-optimal {
+  color: var(--status-ok);
+  border-color: rgba(62, 207, 142, 0.35);
+  background: var(--status-ok-soft);
+}
+
+.badge--solver-warning {
+  color: var(--status-warn);
+  border-color: rgba(240, 173, 78, 0.35);
+  background: var(--status-warn-soft);
+}
+
+/* Crew status */
+.crew-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.crew-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.crew-row:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.crew-alert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--status-warn);
+  background: var(--status-warn-soft);
+  border: 1px solid rgba(240, 173, 78, 0.35);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+}
+
+.crew-alert-icon {
+  font-size: 13px;
+}
+
+/* -----------------------------------------------------------------
+   13. AI OPERATIONAL BRIEFING
+   ----------------------------------------------------------------- */
+.briefing-card {
+  border-color: var(--border-strong);
+  background: linear-gradient(180deg, var(--bg-panel-raised), var(--bg-panel) 40%);
+}
+
+.briefing-tag {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border: 1px solid rgba(79, 214, 208, 0.3);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+.briefing-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.briefing-section {
+  padding-left: 14px;
+  border-left: 2px solid var(--border-strong);
+}
+
+.briefing-section-title {
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.briefing-section-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text-secondary);
+  white-space: pre-line;
+}
+
+/* -----------------------------------------------------------------
+   14. RESPONSIVE
+   ----------------------------------------------------------------- */
+@media (max-width: 980px) {
+  .disruption-grid {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 18px;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .split-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .dashboard {
+    padding: 18px 16px 44px;
+  }
+
+  .topbar {
+    padding: 12px 16px;
+  }
+
+  .analysis-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .flight-input {
+    width: 100%;
+  }
+
+  .btn-primary, .btn-secondary {
+    width: 100%;
+  }
+
+  .disruption-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-value {
+    font-size: 24px;
+  }
+}
+
+/* -----------------------------------------------------------------
+   15. REDUCED MOTION
+   ----------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

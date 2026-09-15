@@ -716,3 +716,134 @@ function formatLabel(value) {
   if (!value || typeof value !== "string") return "—";
   return value.replace(/_/g, " ");
 }
+
+// ======================================================
+// IROPS RAG POLICY ASSISTANT
+// ======================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+
+  const chatInput = document.getElementById("chatInput");
+  const chatSendBtn = document.getElementById("chatSendBtn");
+  const chatMessages = document.getElementById("chatMessages");
+
+  if (!chatInput || !chatSendBtn || !chatMessages) {
+    console.error("RAG chat elements not found.");
+    return;
+  }
+
+  function addChatMessage(message, type) {
+
+    const messageDiv = document.createElement("div");
+
+    messageDiv.className =
+      type === "user"
+        ? "chat-message user-message"
+        : "chat-message assistant-message";
+
+    const label = document.createElement("div");
+    label.className = "chat-label";
+    label.textContent =
+      type === "user" ? "YOU" : "IROPS ASSISTANT";
+
+    const text = document.createElement("div");
+    text.className = "chat-text";
+    text.textContent = message;
+
+    messageDiv.appendChild(label);
+    messageDiv.appendChild(text);
+
+    chatMessages.appendChild(messageDiv);
+
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+
+
+  async function askPolicyAssistant() {
+
+    const question = chatInput.value.trim();
+
+    if (!question) {
+      return;
+    }
+
+    addChatMessage(question, "user");
+
+    chatInput.value = "";
+
+    chatSendBtn.disabled = true;
+    chatSendBtn.textContent = "Asking...";
+
+    try {
+
+      const response = await fetch(
+        `${API_BASE_URL}/chat?question=${encodeURIComponent(question)}`,
+        {
+          method: "POST"
+        }
+      );
+
+      if (!response.ok) {
+
+        const errorText = await response.text();
+
+        throw new Error(
+          `Backend error ${response.status}: ${errorText}`
+        );
+      }
+
+      const data = await response.json();
+
+      let answer = data.answer || "No answer returned.";
+
+      if (data.sources && data.sources.length > 0) {
+
+        answer += "\n\nSources:\n";
+
+        data.sources.forEach(source => {
+
+          if (source.source) {
+            answer += `• ${source.source}\n`;
+          }
+
+        });
+      }
+
+      addChatMessage(answer, "assistant");
+
+    } catch (error) {
+
+      console.error("RAG CHAT ERROR:", error);
+
+      addChatMessage(
+        "Unable to contact the IROPS policy assistant.\n\n" +
+        error.message,
+        "assistant"
+      );
+
+    } finally {
+
+      chatSendBtn.disabled = false;
+      chatSendBtn.textContent = "Ask";
+    }
+  }
+
+
+  chatSendBtn.addEventListener(
+    "click",
+    askPolicyAssistant
+  );
+
+
+  chatInput.addEventListener(
+    "keydown",
+    (event) => {
+
+      if (event.key === "Enter") {
+        askPolicyAssistant();
+      }
+
+    }
+  );
+
+});

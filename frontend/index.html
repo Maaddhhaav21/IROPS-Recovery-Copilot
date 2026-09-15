@@ -354,6 +354,39 @@
           <!-- populated dynamically -->
         </div>
       </section>
+      <!-- RAG POLICY ASSISTANT -->
+      <section class="card chat-card">
+        <div class="card-header">
+          <div>
+            <h2>IROPS Policy Assistant</h2>
+            <p class="card-subtitle">
+              Ask questions about disruption, rebooking, connections, crew, and passenger policies.
+            </p>
+          </div>
+          <span class="briefing-tag">RAG</span>
+        </div>
+
+        <div id="chatMessages" class="chat-messages">
+          <div class="chat-message assistant-message">
+            <div class="chat-label">IROPS Assistant</div>
+            <div class="chat-text">
+              Ask me about the airline policies available in my knowledge base.
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-row">
+          <input
+            type="text"
+            id="chatInput"
+            placeholder="Ask about rebooking or disruption policy..."
+          />
+
+          <button id="chatSendBtn" class="primary-btn">
+            Ask
+          </button>
+        </div>
+      </section>
 
     </div>
 

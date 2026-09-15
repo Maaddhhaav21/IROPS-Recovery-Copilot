@@ -1,57 +1,137 @@
 from langgraph.graph import StateGraph, END
 
 from app.graph.state import IROPSState
-from app.graph.nodes import generate_recovery_plan
+from app.agents.disruption_agent import DisruptionAgent
+from app.agents.passenger_agent import PassengerAgent
+from app.agents.rebooking_agent import RebookingAgent
+from app.agents.crew_agent import CrewAgent
+from app.agents.briefing_agent import BriefingAgent
 
 
-def recovery_node(state: IROPSState):
-    """
-    Run the complete recovery engine.
-    """
-
+def disruption_node(state: IROPSState):
     flight_id = state["flight_id"]
 
-    plan = generate_recovery_plan(flight_id)
+    agent = DisruptionAgent()
+    result = agent.analyze(flight_id)
 
     return {
-        "disruption_type": plan.get("disruption_type"),
-        "severity": plan.get("severity"),
-        "affected_passengers": plan.get(
-            "affected_passengers"
-        ),
-        "alternative_flights": plan.get(
-            "alternative_flights"
-        ),
-        "solver_status": plan.get(
-            "solver_status"
-        ),
-        "rebooking_results": plan.get(
-            "rebooking_results"
-        ),
-        "feasible_options": plan.get(
-            "feasible_options"
-        ),
-        "recovery_plan": plan,
+    "flight_id": result["flight_id"],
+    "disruption_type": result["disruption_type"],
+    "severity": result["severity"],
+    "disruption_status": result["disruption_status"],
+    "recovery_plan": result,
+    }
+
+
+def passenger_node(state: IROPSState):
+    flight_id = state["flight_id"]
+
+    agent = PassengerAgent()
+    result = agent.analyze(flight_id)
+
+    return {
+        "affected_passengers": result["affected_passengers"],
+        "connecting_passengers": result["connecting_passengers"],
+    }
+
+
+def rebooking_node(state: IROPSState):
+    flight_id = state["flight_id"]
+    affected_passengers = state["affected_passengers"]
+
+    agent = RebookingAgent()
+
+    result = agent.analyze(
+        flight_id,
+        affected_passengers,
+    )
+
+    return {
+        "alternative_flights": result.get("results", []),
+        "feasible_options": result.get("feasible_options", {}),
+        "solver_status": result.get("solver_status"),
+        "rebooking_results": result.get("results", []),
+        "recovery_plan": result,
+    }
+
+
+def crew_node(state: IROPSState):
+    flight_id = state["flight_id"]
+
+    agent = CrewAgent()
+    result = agent.analyze(flight_id)
+
+    return {
+        "crew_analysis": result,
+    }
+
+
+def briefing_node(state: IROPSState):
+    agent = BriefingAgent()
+
+    result = agent.generate(state)
+
+    return {
+        "briefing": result["briefing"],
     }
 
 
 def build_workflow():
-    """
-    Build the IROPS recovery workflow.
-    """
-
     workflow = StateGraph(IROPSState)
 
+    # Add agents as LangGraph nodes
     workflow.add_node(
-        "recovery",
-        recovery_node
+        "disruption_agent",
+        disruption_node,
     )
 
-    workflow.set_entry_point("recovery")
+    workflow.add_node(
+        "passenger_agent",
+        passenger_node,
+    )
+
+    workflow.add_node(
+        "rebooking_agent",
+        rebooking_node,
+    )
+
+    workflow.add_node(
+        "crew_agent",
+        crew_node,
+    )
+
+    workflow.add_node(
+        "briefing_agent",
+        briefing_node,
+    )
+
+    # Starting point
+    workflow.set_entry_point("disruption_agent")
+
+    # Agent sequence
+    workflow.add_edge(
+        "disruption_agent",
+        "passenger_agent",
+    )
 
     workflow.add_edge(
-        "recovery",
-        END
+        "passenger_agent",
+        "rebooking_agent",
+    )
+
+    workflow.add_edge(
+        "rebooking_agent",
+        "crew_agent",
+    )
+
+    workflow.add_edge(
+        "crew_agent",
+        "briefing_agent",
+    )
+
+    workflow.add_edge(
+        "briefing_agent",
+        END,
     )
 
     return workflow.compile()

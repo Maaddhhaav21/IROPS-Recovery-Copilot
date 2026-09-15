@@ -1,65 +1,102 @@
-import pandas as pd
+from sqlalchemy.orm import Session
+
+from app.database.connection import SessionLocal
+from app.database.models import Flight
 
 
-FLIGHTS_PATH = "data/flights.csv"
+def get_db():
+    db = SessionLocal()
 
-
-def load_flights():
-    flights = pd.read_csv(FLIGHTS_PATH)
-
-    flights["departure"] = pd.to_datetime(
-        flights["departure"]
-    )
-
-    flights["arrival"] = pd.to_datetime(
-        flights["arrival"]
-    )
-
-    return flights
+    try:
+        return db
+    except Exception:
+        db.close()
+        raise
 
 
 def get_flight(flight_id):
-    flights = load_flights()
+    db = get_db()
 
-    flight = flights[
-        flights["flight_id"] == flight_id
-    ]
+    try:
+        flight = (
+            db.query(Flight)
+            .filter(Flight.flight_id == flight_id)
+            .first()
+        )
 
-    if flight.empty:
-        return None
+        if flight is None:
+            return None
 
-    return flight.iloc[0].to_dict()
+        return {
+            "flight_id": flight.flight_id,
+            "origin": flight.origin,
+            "destination": flight.destination,
+            "departure": flight.departure,
+            "arrival": flight.arrival,
+            "aircraft_id": flight.aircraft_id,
+            "capacity": flight.capacity,
+            "occupied_seats": flight.occupied_seats,
+            "available_seats": flight.available_seats,
+            "status": flight.status,
+        }
+
+    finally:
+        db.close()
 
 
 def get_alternative_flights(flight_id):
-    flights = load_flights()
+    db = get_db()
 
-    flight = get_flight(flight_id)
+    try:
+        flight = (
+            db.query(Flight)
+            .filter(Flight.flight_id == flight_id)
+            .first()
+        )
 
-    if flight is None:
-        return pd.DataFrame()
+        if flight is None:
+            return []
 
-    alternatives = flights[
-        (flights["origin"] == flight["origin"])
-        & (
-            flights["destination"]
-            == flight["destination"]
+        flights = (
+            db.query(Flight)
+            .filter(
+                Flight.origin == flight.origin,
+                Flight.destination == flight.destination,
+                Flight.flight_id != flight_id,
+                Flight.status == "SCHEDULED",
+            )
+            .all()
         )
-        & (
-            flights["departure"]
-            > flight["departure"]
-        )
-        & (
-            flights["flight_id"]
-            != flight_id
-        )
-        & (
-            flights["status"]
-            == "SCHEDULED"
-        )
-    ].copy()
 
-    return alternatives
+        alternatives = []
+
+        for alternative in flights:
+
+            if alternative.departure > flight.departure:
+
+                alternatives.append(
+                    {
+                        "flight_id": alternative.flight_id,
+                        "origin": alternative.origin,
+                        "destination": alternative.destination,
+                        "departure": alternative.departure,
+                        "arrival": alternative.arrival,
+                        "aircraft_id": alternative.aircraft_id,
+                        "capacity": alternative.capacity,
+                        "occupied_seats": alternative.occupied_seats,
+                        "available_seats": alternative.available_seats,
+                        "status": alternative.status,
+                    }
+                )
+
+        alternatives.sort(
+            key=lambda x: x["departure"]
+        )
+
+        return alternatives
+
+    finally:
+        db.close()
 
 
 def get_flight_status(flight_id):

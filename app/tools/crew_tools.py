@@ -1,39 +1,102 @@
-import pandas as pd
+from app.database.connection import SessionLocal
+from app.database.models import Crew
 
 
-CREW_PATH = "data/crew.csv"
+def get_db():
+    return SessionLocal()
 
 
 def load_crew():
-    return pd.read_csv(CREW_PATH)
+    db = get_db()
+
+    try:
+        crew = db.query(Crew).all()
+
+        return [
+            {
+                "crew_id": member.crew_id,
+                "name": member.name,
+                "role": member.role,
+                "aircraft_type": member.aircraft_type,
+                "base_airport": member.base_airport,
+                "current_airport": member.current_airport,
+                "duty_hours": member.duty_hours,
+                "rest_hours": member.rest_hours,
+                "status": member.status,
+            }
+            for member in crew
+        ]
+
+    finally:
+        db.close()
 
 
 def get_available_crew(origin):
-    crew = load_crew()
+    db = get_db()
 
-    return crew[
-        (crew["current_airport"] == origin)
-        & (crew["status"] == "AVAILABLE")
-    ].copy()
+    try:
+        crew = (
+            db.query(Crew)
+            .filter(
+                Crew.current_airport == origin,
+                Crew.status == "AVAILABLE",
+            )
+            .all()
+        )
+
+        return [
+            {
+                "crew_id": member.crew_id,
+                "name": member.name,
+                "role": member.role,
+                "aircraft_type": member.aircraft_type,
+                "base_airport": member.base_airport,
+                "current_airport": member.current_airport,
+                "duty_hours": member.duty_hours,
+                "rest_hours": member.rest_hours,
+                "status": member.status,
+            }
+            for member in crew
+        ]
+
+    finally:
+        db.close()
 
 
 def get_matching_crew(origin, aircraft_type):
     crew = get_available_crew(origin)
 
-    return crew[
-        crew["aircraft_type"]
-        == aircraft_type
-    ].copy()
+    return [
+        member
+        for member in crew
+        if member["aircraft_type"] == aircraft_type
+    ]
 
 
 def get_crew_member(crew_id):
-    crew = load_crew()
+    db = get_db()
 
-    member = crew[
-        crew["crew_id"] == crew_id
-    ]
+    try:
+        member = (
+            db.query(Crew)
+            .filter(Crew.crew_id == crew_id)
+            .first()
+        )
 
-    if member.empty:
-        return None
+        if member is None:
+            return None
 
-    return member.iloc[0].to_dict()
+        return {
+            "crew_id": member.crew_id,
+            "name": member.name,
+            "role": member.role,
+            "aircraft_type": member.aircraft_type,
+            "base_airport": member.base_airport,
+            "current_airport": member.current_airport,
+            "duty_hours": member.duty_hours,
+            "rest_hours": member.rest_hours,
+            "status": member.status,
+        }
+
+    finally:
+        db.close()

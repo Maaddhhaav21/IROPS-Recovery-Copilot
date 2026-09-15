@@ -1,25 +1,55 @@
-import pandas as pd
+from app.database.connection import SessionLocal
+from app.database.models import Aircraft
 
 
-AIRCRAFT_PATH = "data/aircraft.csv"
+def get_db():
+    return SessionLocal()
 
 
 def load_aircraft():
-    return pd.read_csv(AIRCRAFT_PATH)
+    db = get_db()
+
+    try:
+        aircraft = db.query(Aircraft).all()
+
+        return [
+            {
+                "aircraft_id": item.aircraft_id,
+                "aircraft_type": item.aircraft_type,
+                "capacity": item.capacity,
+                "current_airport": item.current_airport,
+                "status": item.status,
+            }
+            for item in aircraft
+        ]
+
+    finally:
+        db.close()
 
 
 def get_aircraft(aircraft_id):
-    aircraft = load_aircraft()
+    db = get_db()
 
-    result = aircraft[
-        aircraft["aircraft_id"]
-        == aircraft_id
-    ]
+    try:
+        aircraft = (
+            db.query(Aircraft)
+            .filter(Aircraft.aircraft_id == aircraft_id)
+            .first()
+        )
 
-    if result.empty:
-        return None
+        if aircraft is None:
+            return None
 
-    return result.iloc[0].to_dict()
+        return {
+            "aircraft_id": aircraft.aircraft_id,
+            "aircraft_type": aircraft.aircraft_type,
+            "capacity": aircraft.capacity,
+            "current_airport": aircraft.current_airport,
+            "status": aircraft.status,
+        }
+
+    finally:
+        db.close()
 
 
 def get_aircraft_type(aircraft_id):

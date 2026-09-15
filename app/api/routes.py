@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-
+from app.rag.chat import ask_irop_assistant
 from app.graph.workflow import recovery_workflow
 from app.tools.flight_tools import get_alternative_flights
 
@@ -21,7 +21,6 @@ def home():
 
 @router.post("/recover")
 def recover_flight(request: RecoveryRequest):
-
     try:
         flight_id = request.flight_id.strip().upper()
 
@@ -202,6 +201,7 @@ def recover_flight(request: RecoveryRequest):
             ),
         }
 
+
     except HTTPException:
         raise
 
@@ -211,3 +211,13 @@ def recover_flight(request: RecoveryRequest):
             status_code=500,
             detail=str(e)
         )
+
+@router.post("/chat")
+def chat(question: str):
+    answer, sources = ask_irop_assistant(question)
+
+    return {
+        "question": question,
+        "answer": answer,
+        "sources": sources,
+    }
